@@ -2,14 +2,14 @@
 Recommendation Engine - Generates recommendations based on analysis
 """
 from typing import List, Dict, Any
-import openai
-from src.config import OPENAI_API_KEY
+import google.generativeai as genai
+from src.config import GOOGLE_API_KEY, GOOGLE_MODEL
 from src.models import ProjectIdea, ScoringResult
 
 class RecommendationEngine:
     def __init__(self):
-        openai.api_key = OPENAI_API_KEY
-        self.model = "gpt-4"
+        genai.configure(api_key=GOOGLE_API_KEY)
+        self.model = genai.GenerativeModel(GOOGLE_MODEL)
     
     def generate_recommendations(
         self,
@@ -42,14 +42,9 @@ Provide recommendations for:
 
 Format as a numbered list of actionable recommendations."""
         
-        response = openai.ChatCompletion.create(
-            model=self.model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=1000
-        )
+        response = self.model.generate_content(prompt)
         
-        content = response['choices'][0]['message']['content']
+        content = response.text
         # Parse numbered list
         recommendations = [
             line.strip() for line in content.split('\n')

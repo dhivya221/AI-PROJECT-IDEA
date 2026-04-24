@@ -2,30 +2,31 @@
 Embedding Engine - Converts text to embeddings for vector search
 """
 from typing import List
-import openai
-from src.config import OPENAI_API_KEY
+import google.generativeai as genai
+from src.config import GOOGLE_API_KEY
 
 class EmbeddingEngine:
     def __init__(self):
-        openai.api_key = OPENAI_API_KEY
-        self.model = "text-embedding-3-small"
+        genai.configure(api_key=GOOGLE_API_KEY)
+        self.model = "models/embedding-001"
     
     def embed_text(self, text: str) -> List[float]:
         """Convert text to embedding vector"""
-        response = openai.Embedding.create(
-            input=text,
-            model=self.model
+        response = genai.embed_content(
+            model=self.model,
+            content=text,
+            task_type="retrieval_document"
         )
-        return response['data'][0]['embedding']
+        return response['embedding']
     
     def embed_batch(self, texts: List[str]) -> List[List[float]]:
         """Convert multiple texts to embeddings"""
-        response = openai.Embedding.create(
-            input=texts,
-            model=self.model
+        response = genai.embed_content(
+            model=self.model,
+            content=texts,
+            task_type="retrieval_document"
         )
-        # Sort by index to maintain order
-        return [item['embedding'] for item in sorted(response['data'], key=lambda x: x['index'])]
+        return response['embedding']
 
 # Singleton instance
 _embedding_engine = None

@@ -2,15 +2,16 @@
 Scoring Module - Scores ideas on multiple dimensions
 """
 from typing import List, Dict, Any
-import openai
+import google.generativeai as genai
 import json
-from src.config import OPENAI_API_KEY
+import re
+from src.config import GOOGLE_API_KEY, GOOGLE_MODEL
 from src.models import ProjectIdea, ScoringResult
 
 class ScoringModule:
     def __init__(self):
-        openai.api_key = OPENAI_API_KEY
-        self.model = "gpt-4"
+        genai.configure(api_key=GOOGLE_API_KEY)
+        self.model = genai.GenerativeModel(GOOGLE_MODEL)
     
     def score(self, ideas: List[ProjectIdea], domain: str) -> List[ScoringResult]:
         """Score ideas on feasibility, innovation, and market potential"""
@@ -47,17 +48,19 @@ Format as JSON:
   }}
 }}
 
-Return only valid JSON."""
+Return only valid JSON without markdown formatting."""
             
-            response = openai.ChatCompletion.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.6,
-                max_tokens=600
-            )
+            response = self.model.generate_content(prompt)
+            text_response = response.text
+            
+            # Clean up possible markdown wrappers
+            text_response = re.sub(r'^```json\s*', '', text_response)
+            text_response = re.sub(r'^```\s*', '', text_response)
+            text_response = re.sub(r'\s*```$', '', text_response)
+            text_response = text_response.strip()
             
             try:
-                score_data = json.loads(response['choices'][0]['message']['content'])
+                score_data = json.loads(text_response)
                 results.append(ScoringResult(**score_data))
             except (json.JSONDecodeError, ValueError):
                 results.append(ScoringResult(

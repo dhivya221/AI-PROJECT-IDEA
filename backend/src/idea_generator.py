@@ -2,15 +2,16 @@
 Idea Generator - Generates project ideas based on domain analysis
 """
 from typing import List, Dict, Any
-import openai
+import google.generativeai as genai
 import json
-from src.config import OPENAI_API_KEY
+import re
+from src.config import GOOGLE_API_KEY, GOOGLE_MODEL
 from src.models import ProjectIdea
 
 class IdeaGenerator:
     def __init__(self):
-        openai.api_key = OPENAI_API_KEY
-        self.model = "gpt-4"
+        genai.configure(api_key=GOOGLE_API_KEY)
+        self.model = genai.GenerativeModel(GOOGLE_MODEL)
     
     def generate(self, domain: str, analysis: str, num_ideas: int = 5) -> List[ProjectIdea]:
         """Generate project ideas for the domain"""
@@ -34,24 +35,26 @@ Example format:
   {{"title": "...", "description": "...", "use_case": "...", "potential_impact": "..."}}
 ]
 
-Generate exactly {num_ideas} ideas. Return only valid JSON."""
+Generate exactly {num_ideas} ideas. Return only valid JSON without any markdown formatting."""
         
-        response = openai.ChatCompletion.create(
-            model=self.model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.9,
-            max_tokens=2000
-        )
+        response = self.model.generate_content(prompt)
+        text_response = response.text
+        
+        # Clean up possible markdown wrappers
+        text_response = re.sub(r'^```json\s*', '', text_response)
+        text_response = re.sub(r'^```\s*', '', text_response)
+        text_response = re.sub(r'\s*```$', '', text_response)
+        text_response = text_response.strip()
         
         try:
-            ideas_data = json.loads(response['choices'][0]['message']['content'])
+            ideas_data = json.loads(text_response)
             return [ProjectIdea(**idea) for idea in ideas_data]
         except (json.JSONDecodeError, ValueError) as e:
             # Fallback if JSON parsing fails
             return [
                 ProjectIdea(
                     title=f"Project Idea {i+1}",
-                    description=response['choices'][0]['message']['content'][:200],
+                    description=text_response[:200] + "...",
                     use_case="To be detailed",
                     potential_impact="High"
                 )

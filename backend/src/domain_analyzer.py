@@ -2,13 +2,13 @@
 Domain Analyzer - Analyzes input domain/idea for key characteristics
 """
 from typing import Dict, List, Any
-import openai
-from src.config import OPENAI_API_KEY
+import google.generativeai as genai
+from src.config import GOOGLE_API_KEY, GOOGLE_MODEL
 
 class DomainAnalyzer:
     def __init__(self):
-        openai.api_key = OPENAI_API_KEY
-        self.model = "gpt-4"
+        genai.configure(api_key=GOOGLE_API_KEY)
+        self.model = genai.GenerativeModel(GOOGLE_MODEL)
     
     def analyze(self, domain: str, context: str = None) -> Dict[str, Any]:
         """Analyze domain and extract key characteristics"""
@@ -27,16 +27,11 @@ Provide analysis in the following format:
 
 Be concise but comprehensive."""
         
-        response = openai.ChatCompletion.create(
-            model=self.model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=1000
-        )
+        response = self.model.generate_content(prompt)
         
         return {
             "domain": domain,
-            "analysis": response['choices'][0]['message']['content']
+            "analysis": response.text
         }
 
 # Singleton instance

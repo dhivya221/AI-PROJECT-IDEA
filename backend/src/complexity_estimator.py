@@ -2,15 +2,16 @@
 Complexity Estimator - Estimates complexity and development effort
 """
 from typing import List, Dict, Any
-import openai
+import google.generativeai as genai
 import json
-from src.config import OPENAI_API_KEY
+import re
+from src.config import GOOGLE_API_KEY, GOOGLE_MODEL
 from src.models import ComplexityAnalysis, ProjectIdea
 
 class ComplexityEstimator:
     def __init__(self):
-        openai.api_key = OPENAI_API_KEY
-        self.model = "gpt-4"
+        genai.configure(api_key=GOOGLE_API_KEY)
+        self.model = genai.GenerativeModel(GOOGLE_MODEL)
     
     def estimate(self, ideas: List[ProjectIdea]) -> List[ComplexityAnalysis]:
         """Estimate complexity for each idea"""
@@ -37,17 +38,19 @@ Format:
   "key_challenges": ["...", "..."]
 }}
 
-Return only valid JSON."""
+Return only valid JSON without markdown formatting."""
             
-            response = openai.ChatCompletion.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.6,
-                max_tokens=500
-            )
+            response = self.model.generate_content(prompt)
+            text_response = response.text
+            
+            # Clean up possible markdown wrappers
+            text_response = re.sub(r'^```json\s*', '', text_response)
+            text_response = re.sub(r'^```\s*', '', text_response)
+            text_response = re.sub(r'\s*```$', '', text_response)
+            text_response = text_response.strip()
             
             try:
-                data = json.loads(response['choices'][0]['message']['content'])
+                data = json.loads(text_response)
                 estimations.append(ComplexityAnalysis(**data))
             except (json.JSONDecodeError, ValueError):
                 estimations.append(ComplexityAnalysis(
